@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>متابعة الدراسة</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e3c72">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,sans-serif}
+body{background:linear-gradient(135deg,#1e3c72,#2a5298);min-height:100vh;padding:20px;color:#333}
+.container{max-width:700px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,.3);overflow:hidden}
+header{background:#1e3c72;color:#fff;padding:25px;text-align:center}
+header h1{font-size:1.8rem;margin-bottom:5px}
+header p{opacity:.9;font-size:.95rem}
+.stats{display:flex;justify-content:space-around;padding:20px;background:#f8f9fa;border-bottom:1px solid #eee}
+.stat{text-align:center}
+.stat-number{font-size:1.8rem;font-weight:bold;color:#1e3c72}
+.stat-label{font-size:.85rem;color:#666}
+.input-section{padding:20px;display:flex;gap:10px}
+#taskInput{flex:1;padding:14px 18px;border:2px solid #ddd;border-radius:12px;font-size:1rem;outline:none;transition:.3s}
+#taskInput:focus{border-color:#1e3c72}
+#addBtn{background:#1e3c72;color:#fff;border:none;padding:0 25px;border-radius:12px;font-size:1rem;cursor:pointer;transition:.3s}
+#addBtn:hover{background:#2a5298}
+.filters{display:flex;justify-content:center;gap:10px;padding:0 20px 15px}
+.filter-btn{padding:8px 18px;border:2px solid #1e3c72;background:#fff;color:#1e3c72;border-radius:20px;cursor:pointer;font-size:.9rem;transition:.3s}
+.filter-btn.active{background:#1e3c72;color:#fff}
+.tasks{padding:10px 20px 25px;max-height:450px;overflow-y:auto}
+.task{display:flex;align-items:center;background:#f8f9fa;margin-bottom:10px;padding:15px;border-radius:12px;transition:.3s;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.task.completed{background:#e8f5e9;opacity:.85}
+.task.completed .task-text{text-decoration:line-through;color:#666}
+.checkbox{width:24px;height:24px;border:2px solid #1e3c72;border-radius:50%;margin-left:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.3s}
+.task.completed .checkbox{background:#4caf50;border-color:#4caf50;color:#fff}
+.task-text{flex:1;font-size:1.05rem;word-break:break-word}
+.delete-btn{background:none;border:none;color:#e53935;font-size:1.3rem;cursor:pointer;padding:5px 10px;opacity:.7;transition:.3s}
+.delete-btn:hover{opacity:1;transform:scale(1.2)}
+.empty{text-align:center;padding:40px 20px;color:#999;font-size:1.1rem}
+.progress-bar{height:8px;background:#e0e0e0;border-radius:4px;margin:0 20px 15px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);border-radius:4px;transition:width .5s ease;width:0%}
+footer{text-align:center;padding:15px;font-size:.85rem;color:#888;border-top:1px solid #eee}
+</style>
+</head>
+<body>
+<div class="container">
+<header><h1>📚 متابعة الدراسة</h1><p>تتبع ما أنجزته وما لم تنجزه</p></header>
+<div class="stats">
+<div class="stat"><div class="stat-number" id="totalCount">0</div><div class="stat-label">إجمالي</div></div>
+<div class="stat"><div class="stat-number" id="doneCount">0</div><div class="stat-label">منجز</div></div>
+<div class="stat"><div class="stat-number" id="pendingCount">0</div><div class="stat-label">غير منجز</div></div>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+<div class="input-section">
+<input type="text" id="taskInput" placeholder="أضف مادة أو مهمة دراسية...">
+<button id="addBtn">إضافة</button>
+</div>
+<div class="filters">
+<button class="filter-btn active" data-filter="all">الكل</button>
+<button class="filter-btn" data-filter="pending">غير منجز</button>
+<button class="filter-btn" data-filter="completed">منجز</button>
+</div>
+<div class="tasks" id="tasksList"></div>
+<footer>يتم حفظ البيانات تلقائيًا في جهازك</footer>
+</div>
+<script>
+let tasks=[];
+try{tasks=JSON.parse(localStorage.getItem('studyTasks'))||[]}catch(e){tasks=[]}
+let currentFilter='all';
+const taskInput=document.getElementById('taskInput'),addBtn=document.getElementById('addBtn'),tasksList=document.getElementById('tasksList'),
+totalCount=document.getElementById('totalCount'),doneCount=document.getElementById('doneCount'),pendingCount=document.getElementById('pendingCount'),progressFill=document.getElementById('progressFill');
+const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function saveTasks(){try{localStorage.setItem('studyTasks',JSON.stringify(tasks))}catch(e){}}
+function addTask(){const text=taskInput.value.trim();if(!text)return;tasks.unshift({id:Date.now(),text,completed:false});saveTasks();taskInput.value='';renderTasks()}
+function updateStats(){const total=tasks.length,done=tasks.filter(t=>t.completed).length;
+totalCount.textContent=total;doneCount.textContent=done;pendingCount.textContent=total-done;
+progressFill.style.width=(total?Math.round(done/total*100):0)+'%'}
+function renderTasks(){let f=tasks;
+if(currentFilter==='completed')f=tasks.filter(t=>t.completed);else if(currentFilter==='pending')f=tasks.filter(t=>!t.completed);
+tasksList.innerHTML=f.length===0?`<div class="empty">لا توجد مهام هنا ✨<br>أضف مهمة جديدة!</div>`:
+f.map(t=>`<div class="task ${t.completed?'completed':''}"><div class="checkbox" onclick="toggleTask(${t.id})">${t.completed?'✓':''}</div><div class="task-text">${esc(t.text)}</div><button class="delete-btn" onclick="deleteTask(${t.id})">×</button></div>`).join('');
+updateStats()}
+function toggleTask(id){tasks=tasks.map(t=>t.id===id?{...t,completed:!t.completed}:t);saveTasks();renderTasks()}
+function deleteTask(id){if(confirm('هل تريد حذف هذه المهمة؟')){tasks=tasks.filter(t=>t.id!==id);saveTasks();renderTasks()}}
+document.querySelectorAll('.filter-btn').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');currentFilter=b.dataset.filter;renderTasks()}));
+addBtn.addEventListener('click',addTask);
+taskInput.addEventListener('keypress',e=>{if(e.key==='Enter')addTask()});
+renderTasks();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+</script>
+</body>
+</html>
